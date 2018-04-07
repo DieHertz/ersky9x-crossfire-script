@@ -24,30 +24,14 @@ nextDevice:
 refreshNext:
     let command = 0
     let count = 0
-    result = crossfirereceive(command, count, receiveBuffer)
-
-    if result # 0
-        drawtext(0, 37, "result not zero")
-    else
-        drawtext(0, 37, "result is zero")
-    end
-
-    if count # 0
-        drawtext(0, 46, "count not zero")
-    else
-        drawtext(0, 46, "count is zero")
-    end
-
-    if command # 0
-        drawtext(0, 55, "command not zero")
-    else
-        drawtext(0, 55, "command is zero")
-    end
+    result = crossfirereceive(command, count, receiveBuffer[0])
 
     if result = 0
         gosub pollDevices
     else
         if command = CROSSFIRE_COMMAND_DEVICE_INFO
+            gosub parseDeviceInfo
+        else
             gosub parseDeviceInfo
         end
     end
@@ -60,12 +44,7 @@ pollDevices:
         devicesRefreshTimeout = time + 100
         transmitBuffer[0] = 0x00
         transmitBuffer[1] = 0xEA
-        result = crossfiresend(CROSSFIRE_COMMAND_GET_DEVICES, 2, transmitBuffer[0])
-        if result
-            drawtext(0, 9, "send succeeded")
-        else
-            drawtext(0, 9, "send failed")
-        end
+        crossfiresend(CROSSFIRE_COMMAND_GET_DEVICES, 2, transmitBuffer[0])
     end
 
     return
@@ -87,7 +66,7 @@ main:
         gosub previousDevice
     end
 
-    rem drawclear()
+    drawclear()
     drawtext(0, 0, "CROSSFIRE SETUP", INVERS)
 
     if deviceCount > 0
@@ -95,11 +74,11 @@ main:
         while i < deviceCount
             let attr = 0
             if i = deviceIndex then attr = INVERS
-            drawtext(0, i * 8 + 9, "CRSF device present", attr)
+            drawtext(0, i * 8 + 9, "CRSF device", attr)
             i += 1
         end
     else
-        rem drawtext(0, 28, "Waiting for devices...")
+        drawtext(0, 28, "Waiting for devices...")
     end
 
     gosub refreshNext
