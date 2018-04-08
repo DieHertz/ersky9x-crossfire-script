@@ -7,8 +7,10 @@ if init = 0
     deviceIndex = 0
     deviceCount = 0
     devicesRefreshTimeout = 0
-    CROSSFIRE_COMMAND_GET_DEVICES = 0x28
-    CROSSFIRE_COMMAND_DEVICE_INFO = 0x29
+    DEVICE_BROADCAST = 0
+    DEVICE_RADIO_TX = 0xEA
+    COMMAND_POLL_DEVICES = 0x28
+    COMMAND_DEVICE_INFO = 0x29
 end
 
 goto main
@@ -29,7 +31,7 @@ refreshNext:
     if result = 0
         gosub pollDevices
     else
-        if command = CROSSFIRE_COMMAND_DEVICE_INFO
+        if command = COMMAND_DEVICE_INFO
             gosub parseDeviceInfo
         else
             gosub parseDeviceInfo
@@ -42,9 +44,9 @@ pollDevices:
     let time = gettime()
     if time > devicesRefreshTimeout
         devicesRefreshTimeout = time + 100
-        transmitBuffer[0] = 0x00
-        transmitBuffer[1] = 0xEA
-        crossfiresend(CROSSFIRE_COMMAND_GET_DEVICES, 2, transmitBuffer[0])
+        transmitBuffer[0] = DEVICE_BROADCAST
+        transmitBuffer[1] = DEVICE_RADIO_TX
+        crossfiresend(COMMAND_POLL_DEVICES, 2, transmitBuffer[0])
     end
 
     return
