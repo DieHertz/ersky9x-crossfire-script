@@ -7,10 +7,10 @@ if init = 0
     deviceIndex = 0
     deviceCount = 0
     devicesRefreshTimeout = 0
-    DEVICE_BROADCAST = 0
-    DEVICE_RADIO_TX = 0xEA
-    COMMAND_POLL_DEVICES = 0x28
-    COMMAND_DEVICE_INFO = 0x29
+    DEVICE_ID_BROADCAST = 0
+    DEVICE_ID_RADIO_TX = 0xEA
+    FRAME_POLL_DEVICES = 0x28
+    FRAME_DEVICE_INFO = 0x29
 end
 
 goto main
@@ -26,16 +26,15 @@ nextDevice:
 refreshNext:
     let command = 0
     let count = 0
+
     result = crossfirereceive(command, count, receiveBuffer[0])
 
-    if result = 0
-        gosub pollDevices
-    else
-        if command = COMMAND_DEVICE_INFO
-            gosub parseDeviceInfo
-        else
+    if result = 1
+        if command = FRAME_DEVICE_INFO
             gosub parseDeviceInfo
         end
+    else
+        gosub pollDevices
     end
 
     return
@@ -44,9 +43,9 @@ pollDevices:
     let time = gettime()
     if time > devicesRefreshTimeout
         devicesRefreshTimeout = time + 100
-        transmitBuffer[0] = DEVICE_BROADCAST
-        transmitBuffer[1] = DEVICE_RADIO_TX
-        crossfiresend(COMMAND_POLL_DEVICES, 2, transmitBuffer[0])
+        transmitBuffer[0] = DEVICE_ID_BROADCAST
+        transmitBuffer[1] = DEVICE_ID_RADIO_TX
+        result = crossfiresend(FRAME_POLL_DEVICES, 2, transmitBuffer[0])
     end
 
     return
@@ -58,13 +57,9 @@ parseDeviceInfo:
 main:
     if Event = EVT_EXIT_BREAK
         goto exit
-    elseif Event = EVT_DOWN_FIRST
+    elseif (Event = EVT_DOWN_FIRST) | (Event = EVT_DOWN_REPT)
         gosub nextDevice
-    elseif Event = EVT_DOWN_REPT
-        gosub nextDevice
-    elseif Event = EVT_UP_FIRST
-        gosub previousDevice
-    elseif Event = EVT_UP_REPT
+    elseif (Event = EVT_UP_FIRST) | (Event = EVT_UP_REPT)
         gosub previousDevice
     end
 
