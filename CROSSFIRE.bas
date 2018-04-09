@@ -1,14 +1,23 @@
-array byte deviceIds[5]
-array deviceTimeouts[5]
+array byte deviceIds[6]
+array byte deviceNames[100]
+array byte deviceParameterCounts[6]
+array byte deviceParameterVersionNumbers[6]
+
+array deviceTimeouts[6]
 array byte receiveBuffer[64]
 array byte transmitBuffer[64]
-array byte deviceNames[100]
 
 if init = 0
     init = 1
     deviceIndex = 0
     deviceCount = 0
     devicesRefreshTimeout = 0
+
+    STATE_DEVICE_LIST = 0
+    STATE_DEVICE_SETUP = 1
+
+    state = STATE_DEVICE_LIST
+
     DEVICE_ID_BROADCAST = 0
     DEVICE_ID_RADIO_TX = 0xEA
     FRAME_POLL_DEVICES = 0x28
@@ -106,20 +115,25 @@ parseDeviceInfo:
 
     rem -- add terminating zero
     deviceNames[nameOffset + i] = 0
+    deviceParameterCounts[index] = receiveBuffer[i + 15]
+    deviceParameterVersionNumbers[index] = receiveBuffer[i + 16]
+
     deviceTimeouts[index] = gettime() + DEVICE_TIMEOUT
 
     return
 
-main:
+deviceListPage:
     if Event = EVT_EXIT_BREAK
         goto exit
     elseif (Event = EVT_DOWN_FIRST) | (Event = EVT_DOWN_REPT)
         gosub nextDevice
     elseif (Event = EVT_UP_FIRST) | (Event = EVT_UP_REPT)
         gosub previousDevice
+    elseif Event = EVT_MENU_BREAK
+        rem # go into device setup for selected device
+        state = STATE_DEVICE_SETUP
     end
 
-    drawclear()
     drawtext(0, 0, "CROSSFIRE SETUP", INVERS)
 
     if deviceCount > 0
@@ -140,6 +154,29 @@ main:
     end
 
     gosub refreshNext
+
+    return
+
+deviceSetupPage:
+    if Event = EVT_EXIT_BREAK
+        state = STATE_DEVICE_LIST
+    end
+
+    let nameOffset = kMaxDeviceNameLength * deviceIndex
+    drawtext(0, 0, deviceNames[nameOffset], INVERS)
+    drawnumber(0, 9, deviceParameterCounts[deviceIndex])
+    drawnumber(0, 18, deviceParameterVersionNumbers[deviceIndex])
+
+    return
+
+main:
+    drawclear()
+
+    if state = STATE_DEVICE_LIST
+        gosub deviceListPage
+    elseif state = STATE_DEVICE_SETUP
+        gosub deviceSetupPage
+    end
 
     stop
 
