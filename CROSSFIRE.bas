@@ -2,7 +2,7 @@ array byte deviceIds[5]
 array deviceTimeouts[5]
 array byte receiveBuffer[64]
 array byte transmitBuffer[64]
-array byte deviceNames[252]
+array byte deviceNames[100]
 
 if init = 0
     init = 1
@@ -18,9 +18,10 @@ if init = 0
     DEVICE_TIMEOUT = 3000
 
     rem -- including terminating zero
-    kMaxDeviceNameLength = 45
+    rem -- @todo should be 45 according to spec, change later
+    kMaxDeviceNameLength = 16
     rem -- dictated by the number of device names we could fit, will be raised later
-    kMaxDeviceCount = 5
+    kMaxDeviceCount = 6
 end
 
 goto main
@@ -75,38 +76,36 @@ parseDeviceInfo:
     let index = 0
     let break = 0
 
-    while (index < deviceCount) & (index < kMaxDeviceCount) & (break != 0)
-        if deviceIds[index] = id
-            break = 1
-        end
-        ++index
-    end
-
-    rem -- drop last device, ideally use an LRU cache
-    if index = kMaxDeviceCount
-        index = deviceCount
-        deviceCount -= 1
+    while (index < deviceCount) & (id != deviceIds[index])
+        index += 1
     end
 
     rem -- add new device
     if index = deviceCount
-        deviceCount += 1
-        deviceIds[index] = id
-
-        let name_offset = kMaxDeviceNameLength * index
-        let i = 0
-
-        rem -- copy device name string
-        rem -- @todo remove whitespace or trim the string to allow more devices in one array
-        while receiveBuffer[i + 2] & (i < kMaxDeviceNameLength - 1)
-            deviceNames[name_offset + i] = receiveBuffer[i + 2]
-            i += 1
+        if deviceCount < kMaxDeviceCount
+            rem -- device fits
+            deviceCount += 1
+        else
+            rem -- have to evict one of the devices to fit
+            index -= 1
         end
-
-        rem -- add terminating zero
-        deviceNames[name_offset + i] = 0
     end
 
+    rem -- fill device entry
+    deviceIds[index] = id
+
+    let nameOffset = kMaxDeviceNameLength * index
+    let i = 0
+
+    rem -- copy device name string
+    rem -- @todo remove whitespace or trim the string to allow more devices in one array
+    while (receiveBuffer[i + 2] != 0) & (i < kMaxDeviceNameLength - 1)
+        deviceNames[nameOffset + i] = receiveBuffer[i + 2]
+        i += 1
+    end
+
+    rem -- add terminating zero
+    deviceNames[nameOffset + i] = 0
     deviceTimeouts[index] = gettime() + DEVICE_TIMEOUT
 
     return
@@ -125,13 +124,14 @@ main:
 
     if deviceCount > 0
         let i = 0
+
         while i < deviceCount
             let attr = 0
             if i = deviceIndex then attr = INVERS
 
-            let name_offset = kMaxDeviceNameLength * index
+            let nameOffset = kMaxDeviceNameLength * i
 
-            drawtext(0, i * 8 + 9, deviceNames[name_offset], attr)
+            drawtext(0, i * 8 + 9, deviceNames[nameOffset], attr)
 
             i += 1
         end
